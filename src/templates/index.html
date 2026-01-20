@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>MTG Price Checker</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f4f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f2937;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .submit-btn {
+            background: #2563eb;
+            color: white;
+        }
+
+        .submit-btn:hover {
+            background: #1e40af;
+        }
+
+        .refresh-btn {
+            background: #e5e7eb;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .refresh-btn:hover {
+            background: #d1d5db;
+        }
+
+        .card {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .store-list li {
+            list-style: none;
+            padding: 6px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .section-title {
+            color: #1f2937;
+        }
+
+        /* --- CARD IMAGE STYLE --- */
+        .hero-card-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .hero-card {
+            width: 220px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px; /* space between card and text */
+        }
+
+        .title-card {
+            height: 50px;        /* controls the size next to title */
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        #loading-container {
+            display: none;
+            margin-top: 15px;
+        }
+
+        #progress-bar {
+            width: 100%;
+            background: #e5e7eb;
+            border-radius: 8px;
+            height: 20px;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #2563eb;
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+    </style>
+
+    <script>
+        function showLoading() {
+            document.getElementById("loading-container").style.display = "block";
+
+            let interval = setInterval(async function () {
+                let res = await fetch("/progress");
+                let data = await res.json();
+
+                document.getElementById("progress-fill").style.width = data.percent + "%";
+                document.getElementById("progress-text").innerText = data.percent + "%";
+
+                if (data.percent >= 100) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        }
+    </script>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1 class="title-row">
+            <img src="https://cards.scryfall.io/small/front/8/9/893254c7-64cc-4cb9-b79f-2c41a8935ea0.jpg?1738356279" alt="Vnwxt, Verbose Host"
+                class="title-card">
+            MTG Price Checker
+        </h1>
+
+
+
+        <!-- Refresh button -->
+        <button class="refresh-btn" onclick="window.location.href=window.location.href;">
+            🔄 Reset / Refresh Page
+        </button>
+
+        <form method="post" onsubmit="showLoading()">
+            <textarea name="card_list_text" rows="10"
+                placeholder="Paste your card list here...&#10;Example:&#10;1 Swan Song&#10;2 Sol Ring&#10;1 Counterspell"></textarea>
+            <br><br>
+            <button class="submit-btn" type="submit">Check Prices</button>
+
+            <div id="loading-container">
+                <p>Looking up cards... <span id="progress-text">0%</span></p>
+                <div id="progress-bar">
+                    <div id="progress-fill"></div>
+                </div>
+            </div>
+        </form>
+
+        {% if card_list_parsed %}
+        <h2 class="section-title">Parsed Cards:</h2>
+        <div class="card">
+            <ul>
+                {% for card in card_list_parsed %}
+                <li><strong>{{ card.name }}</strong> × {{ card.quantity }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if results %}
+        <h2 class="section-title">Results:</h2>
+
+        {% for card_name, data in results.items() %}
+        <div class="card">
+            <h3>{{ card_name }} × {{ data.quantity }}</h3>
+
+            <ul class="store-list">
+                {% for result in data.results %}
+                <li>
+                    <strong>{{ result.store }}</strong> —
+                    ${{ result.price }} —
+                    {{ result.stock_info }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+    </div>
+
+</body>
+
+</html>
