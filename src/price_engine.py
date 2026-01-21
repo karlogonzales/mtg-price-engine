@@ -1,15 +1,10 @@
-import requests
-import time
+import asyncio
+import aiohttp
 import re
 from urllib.parse import quote
 
 class PriceEngine:
     def __init__(self):
-        self.results = []
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })    
         self.last_progress = 0
 
     def parse_card_list(self, text):
@@ -39,71 +34,61 @@ class PriceEngine:
 
         return cards
 
-    def search_snapcaster(self, card_name, quantity):
-        """Search Snapcaster.ca for a card using their JSON API"""
+    async def search_snapcaster(self, session, card_name, quantity):
         try:
-            search_url = f"https://api.snapcaster.ca/api/v1/catalog/search?mode=singles&tcg=mtg&region=ca&keyword={quote(card_name)}&sortBy=price-asc&maxResultsPerPage=100&pageNumber=1"
-            response = self.session.get(search_url, timeout=10)
-            data = response.json()
-            results = data.get('data', {}).get('results', [])
-            best_result = None
+            search_url = (
+                "https://api.snapcaster.ca/api/v1/catalog/search"
+                f"?mode=singles&tcg=mtg&region=ca&keyword={quote(card_name)}"
+                "&sortBy=price-asc&maxResultsPerPage=100&pageNumber=1"
+            )
+
+            async with session.get(search_url, timeout=10) as response:
+                data = await response.json()
+
+            results = data.get("data", {}).get("results", [])
             for product in results:
-                title = product.get('name', '')
-                if card_name.lower() in title.lower():
-                    price = product.get('price')
-                    vendor = product.get('vendor', 'Unknown')
-                    set_name = product.get('set', 'Unknown')
-                    link = product.get('link', search_url)
-                    condition = product.get('condition', 'Unknown')
-                    printing = product.get('printing', 'Unknown')
-                    # Snapcaster does not provide explicit stock, but if price exists, it's in stock
-                    in_stock = price is not None
-                    if in_stock:
-                        total_cost = price * quantity
-                        result = {
-                            'store': f'Snapcaster ({vendor})',
-                            'card_name': title,
-                            'set': set_name,
-                            'price': price,
-                            'in_stock': in_stock,
-                            'stock_info': condition,
-                            'total_cost': total_cost,
-                            'url': link,
-                            'printing': printing
-                        }
-                        # Return the first (cheapest) in-stock result
-                        return result
+                title = product.get("name", "")
+                price = product.get("price")
+
+                if price and card_name.lower() in title.lower():
+                    return {
+                        "store": f"Snapcaster ({product.get('vendor', 'Unknown')})",
+                        "card_name": title,
+                        "price": price,
+                        "in_stock": True,
+                        "stock_info": product.get("condition", "Unknown"),
+                        "total_cost": price * quantity,
+                        "url": product.get("link"),
+                    }
+
             return None
+
         except Exception as e:
-            print(f"Error searching Snapcaster for {card_name}: {e}")
+            print(f"Snapcaster error ({card_name}): {e}")
             return None
 
-    def search_jeuxjubes(self, card_name, quantity):
-        """Search JeuxJubes via Shopify suggest API (if available)"""
+    async def search_jeuxjubes(self, session, card_name, quantity):
         try:
-            search_url = f"https://www.mtgjeuxjubes.com/search/suggest.json?q={quote(card_name)}&resources[type]=product"
+            url = (
+                "https://www.mtgjeuxjubes.com/search/suggest.json"
+                f"?q={quote(card_name)}&resources[type]=product"
+            )
 
-            response = self.session.get(search_url, timeout=10)
-            data = response.json()
-            products = data.get("resources", {}).get("results", {}).get("products", [])
+            async with session.get(url, timeout=10) as resp:
+                data = await resp.json()
 
             cheapest = None
 
-            for product in products:
+            for product in data.get("resources", {}).get("results", {}).get("products", []):
                 title = product.get("title", "")
-                available = product.get("available", False)
-                price_str = product.get("price_max", "0")
+                if not product.get("available"):
+                    continue
 
-                if card_name.lower() in title.lower() and available:
-                    try:
-                        price = float(price_str)
-                    except ValueError:
-                        continue  # skip if price is not a number
+                if card_name.lower() in title.lower():
+                    price = float(product.get("price_max", 0))
+                    if price <= 0:
+                        continue
 
-                    product_url = product.get("url", "")
-                    total_cost = price * quantity
-
-                    # Keep the cheapest available product
                     if cheapest is None or price < cheapest["price"]:
                         cheapest = {
                             "store": "JeuxJubes",
@@ -111,158 +96,137 @@ class PriceEngine:
                             "price": price,
                             "in_stock": True,
                             "stock_info": "Available online",
-                            "total_cost": total_cost,
-                            "url": f"https://www.jeuxjubes.com{product_url}"
+                            "total_cost": price * quantity,
+                            "url": f"https://www.jeuxjubes.com{product.get('url', '')}",
                         }
 
             return cheapest
-
         except Exception as e:
-            print(f"Error searching JeuxJubes for {card_name}: {e}")
-            return None     
+            print(f"JeuxJubes error ({card_name}): {e}")
+            return None
+     
 
-    def search_401games(self, card_name, quantity):
-        """Search 401games.ca for a card using their Shopify API"""
+    async def search_401games(self, session, card_name, quantity):
         try:
-            # 401 Games uses FastSimon API for search
-            # request_source and src are required to enable fulltext search
-            search_url = f"https://api.fastsimon.com/full_text_search?request_source=v-next&src=v-next&UUID=d3cae9c0-9d9b-4fe3-ad81-873270df14b5&store_id=17041809&q={quote(card_name)}&narrow=[[%22In+Stock%22,%22True%22]]&page_num=1&products_per_page=40"
+            url = (
+                f"https://api.fastsimon.com/full_text_search?request_source=v-next&src=v-next&UUID=d3cae9c0-9d9b-4fe3-ad81-873270df14b5&store_id=17041809&q={quote(card_name)}&narrow=[[%22In+Stock%22,%22True%22]]&page_num=1&products_per_page=40"
+            )
 
-            response = self.session.get(search_url, timeout=10)
-            data = response.json()
+            async with session.get(url, timeout=10) as resp:
+                data = await resp.json(content_type=None)
+                
+            for item in data.get("items", []):
+                title = item.get("l", "")
+                if card_name.lower() in title.lower():
+                    price = float(item.get("p", 0))
+                    url = item.get("u", "")
 
-            # Parse the API response
-            if 'items' in data and len(data['items']) > 0:
-                for item in data['items']:
-                    title = item.get('l', '')  # 'l' appears to be the title field
-                    if card_name.lower() in title.lower():
-                        # Price is in 'p' field
-                        price = float(item.get('p', 0))
+                    if url and not url.startswith("http"):
+                        url = f"https://store.401games.ca{url}"
 
-                        # Since we filtered for in stock, assume it's available
-                        in_stock = True
+                    return {
+                        "store": "401 Games",
+                        "card_name": title,
+                        "price": price,
+                        "in_stock": True,
+                        "stock_info": "In Stock",
+                        "total_cost": price * quantity,
+                        "url": url,
+                    }
 
-                        # Get product URL
-                        product_url = item.get('u', '')
-                        if product_url and not product_url.startswith('http'):
-                            product_url = f"https://store.401games.ca{product_url}"
+            return None
+        except Exception as e:
+            print(f"401 Games error ({card_name}): {e}")
+            return None
 
-                        return {
-                            'store': '401 Games',
-                            'card_name': title,
-                            'price': price,
-                            'in_stock': in_stock,
-                            'stock_info': 'In Stock',
-                            'total_cost': price * quantity,
-                            'url': product_url or f"https://store.401games.ca/pages/search-results?q={quote(card_name)}"
+    async def search_facetoface(self, session, card_name, quantity):
+        try:
+            url = (
+                "https://facetofacegames.com/apps/prod-indexer/search"
+                f"/pageSize/24/page/1/keyword/{quote(card_name)}"
+                "/Availability/In%2520Stock"
+            )
+
+            async with session.get(url, timeout=10) as resp:
+                data = await resp.json()
+
+            best = None
+            best_price = float("inf")
+
+            for hit in data.get("hits", {}).get("hits", []):
+                src = hit.get("_source", {})
+                title = src.get("title", "")
+
+                if card_name.lower() not in title.lower():
+                    continue
+
+                for variant in src.get("variants", []):
+                    price = variant.get("price")
+                    inventory = variant.get("inventoryQuantity", 0)
+
+                    if price and inventory > 0 and price < best_price:
+                        best_price = price
+                        best = {
+                            "store": "Face to Face Games",
+                            "card_name": title,
+                            "price": price,
+                            "in_stock": True,
+                            "stock_info": f"{inventory} in stock",
+                            "total_cost": price * quantity,
+                            "url": f"https://facetofacegames.com/products/{src.get('handle', '')}",
                         }
 
-            return None
+            return best
         except Exception as e:
-            print(f"Error searching 401 Games for {card_name}: {e}")
+            print(f"FaceToFace error ({card_name}): {e}")
             return None
 
-    def search_facetoface(self, card_name, quantity):
-        """Search Face to Face Games for a card using their JSON API"""
-        try:
-            search_url = f"https://facetofacegames.com/apps/prod-indexer/search/pageSize/24/page/1/keyword/{quote(card_name)}/Availability/In%2520Stock"
-            response = self.session.get(search_url, timeout=10)
-            data = response.json()
-            hits = data.get('hits', {}).get('hits', [])
-            best_result = None
-            best_price = float('inf')
-            for hit in hits:
-                source = hit.get('_source', {})
-                title = source.get('title', '')
-                if card_name.lower() in title.lower():
-                    set_name = source.get('Set') or source.get('MTG_Set_Name', 'Unknown')
-                    url = f"https://facetofacegames.com/products/{source.get('handle', '')}"
-                    for variant in source.get('variants', []):
-                        price = variant.get('price')
-                        inventory = variant.get('inventoryQuantity', 0)
-                        if price is not None and inventory > 0:
-                            # Get condition from selectedOptions
-                            condition = 'Unknown'
-                            for opt in variant.get('selectedOptions', []):
-                                if opt.get('name', '').lower() == 'condition':
-                                    condition = opt.get('value', 'Unknown')
-                                    break
-                            printing = source.get('Finish', 'Unknown')
-                            total_cost = price * quantity
-                            if price < best_price:
-                                best_price = price
-                                best_result = {
-                                    'store': 'Face to Face Games',
-                                    'card_name': title,
-                                    'set': set_name,
-                                    'price': price,
-                                    'in_stock': True,
-                                    'stock_info': f"{condition} ({inventory} in stock)",
-                                    'total_cost': total_cost,
-                                    'url': url,
-                                    'printing': printing
-                                }
-            return best_result
-        except Exception as e:
-            print(f"Error searching Face to Face for {card_name}: {e}")
-            return None
 
-    def search_all_stores(self, card_name, quantity):
-        """Search all stores for a card and return results"""
-        print(f"\nSearching for: {card_name} (Qty: {quantity})")
+    async def search_all_stores(self, session, card_name, quantity, store_sem):
+        async with store_sem:
+            tasks = [
+                self.search_snapcaster(session, card_name, quantity),
+                self.search_jeuxjubes(session, card_name, quantity),
+                self.search_401games(session, card_name, quantity),
+                self.search_facetoface(session, card_name, quantity),
+            ]
 
-        results = []
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            return [r for r in results if r and not isinstance(r, Exception)]
 
-        # Search each store with a small delay to be respectful
-        snapcaster_result = self.search_snapcaster(card_name, quantity)
-        if snapcaster_result:
-            results.append(snapcaster_result)
-        time.sleep(1)
 
-        jeuxjubes_result = self.search_jeuxjubes(card_name, quantity)
-        if jeuxjubes_result:
-            results.append(jeuxjubes_result)
-        time.sleep(1)
-
-        games_401_result = self.search_401games(card_name, quantity)
-        if games_401_result:
-            results.append(games_401_result)
-        time.sleep(1)
-
-        facetoface_result = self.search_facetoface(card_name, quantity)
-        if facetoface_result:
-            results.append(facetoface_result)
-        time.sleep(1)
-
-        return results
-
-    def process_card_list(self, card_list):
-        """
-        Process a list of cards with quantities
-        card_list format: [{'name': 'Card Name', 'quantity': 4}, ...]
-        """
-
-        all_results = {}
-
+    async def process_card_list_async(self, card_list):
         total = len(card_list)
+        self.last_progress = 0
 
-        for i, card in enumerate(card_list):
-            card_name = card['name']
-            quantity = card['quantity']
+        card_sem = asyncio.Semaphore(5)
+        store_sem = asyncio.Semaphore(5)
 
-            # 👉 UPDATE PROGRESS
-            self.last_progress = int(((i + 1) / total) * 100)
+        async with aiohttp.ClientSession(
+            headers={"User-Agent": "Mozilla/5.0"}
+        ) as session:
 
-            results = self.search_all_stores(card_name, quantity)
-            all_results[card_name] = {
-                'quantity': quantity,
-                'results': results
-            }
+            async def run_card(i, card):
+                async with card_sem:
+                    results = await self.search_all_stores(
+                        session, card["name"], card["quantity"], store_sem
+                    )
+                    self.last_progress = int(((i + 1) / total) * 100)
+                    return card["name"], {
+                        "quantity": card["quantity"],
+                        "results": results
+                    }
 
-        # When finished:
+            tasks = [
+                run_card(i, card)
+                for i, card in enumerate(card_list)
+            ]
+
+            data = await asyncio.gather(*tasks)
+
         self.last_progress = 100
+        return dict(data)
 
-        return all_results
 
     def display_results(self, all_results):
         """Display results in a readable format"""
