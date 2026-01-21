@@ -47,6 +47,12 @@ class PriceEngine:
 
             results = data.get("data", {}).get("results", [])
             for product in results:
+                normalized = product.get("normalized_name", "").lower()
+
+                # 🚫 Ignore Art Cards
+                if "art" in normalized and "card" in normalized:
+                    continue
+
                 title = product.get("name", "")
                 price = product.get("price")
 
@@ -80,7 +86,12 @@ class PriceEngine:
             cheapest = None
 
             for product in data.get("resources", {}).get("results", {}).get("products", []):
+                
                 title = product.get("title", "")
+
+                # 🚫 Ignore Art Cards
+                if "art" in title.lower() and "card" in title.lower():
+                    continue
                 if not product.get("available"):
                     continue
 
@@ -114,7 +125,7 @@ class PriceEngine:
 
             async with session.get(url, timeout=10) as resp:
                 data = await resp.json(content_type=None)
-                
+
             for item in data.get("items", []):
                 title = item.get("l", "")
                 if card_name.lower() in title.lower():
