@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import asyncio
+
 from price_engine import PriceEngine
 
 app = Flask(__name__, template_folder="templates")
@@ -13,8 +15,13 @@ def index():
     if request.method == "POST":
         text = request.form.get("card_list_text", "")
 
+        # Parse cards (still sync)
         card_list_parsed = checker.parse_card_list(text)
-        results = checker.process_card_list(card_list_parsed)
+
+        # 🔥 CALL ASYNC ENGINE FROM FLASK
+        results = asyncio.run(
+            checker.process_card_list_async(card_list_parsed)
+        )
 
     return render_template(
         "index.html",
