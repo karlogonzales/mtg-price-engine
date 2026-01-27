@@ -55,7 +55,19 @@ class PriceEngine:
 
                 title = product.get("name", "")
                 price = product.get("price")
+                link = product.get("link")
+                handle = product.get("handle")
                 
+                # Skip if no link
+                if not link:
+                    continue
+
+                # Construct URL safely
+                if handle:
+                    url = f"{link}/products/{handle}"
+                else:
+                    url = link
+                print('url', url)
                 if price and card_name.lower() in title.lower():
                     return {
                         "store": f"Snapcaster ({product.get('vendor', 'Unknown')})",
@@ -64,7 +76,7 @@ class PriceEngine:
                         "in_stock": True,
                         "stock_info": product.get("condition", "Unknown"),
                         "total_cost": price * quantity,
-                        "url": product.get("link"),
+                        "url": url,
                     }
 
             return None
