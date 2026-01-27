@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import asyncio
 
-from price_engine import PriceEngine
+from src.price_engine import PriceEngine
 
 app = Flask(__name__, template_folder="templates")
 
