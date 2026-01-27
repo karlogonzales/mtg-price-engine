@@ -11,6 +11,17 @@ checker = PriceEngine()
 def index():
     card_list_parsed = None
     results = None
+    # For testing: always read from file
+    # with open("src/card_list_test.txt", "r", encoding="utf-8") as f:
+    #     text = f.read()
+
+    # # Parse cards (still sync)
+    # card_list_parsed = checker.parse_card_list(text)
+
+    # # 🔥 CALL ASYNC ENGINE FROM FLASK
+    # results = asyncio.run(
+    #     checker.process_card_list_async(card_list_parsed)
+    # )
 
     if request.method == "POST":
         text = request.form.get("card_list_text", "")
