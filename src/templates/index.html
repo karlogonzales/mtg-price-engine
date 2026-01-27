@@ -5,47 +5,66 @@
     <title>MTG Price Checker</title>
 
     <style>
+        /* --- BODY & CONTAINER --- */
         body {
-            font-family: Arial, sans-serif;
-            background: #f2f4f8;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #e0e6ed;
+            /* softer on the eyes */
             margin: 0;
             padding: 0;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 40px auto;
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
             color: #1f2937;
         }
 
+        .container {
+            max-width: 950px;
+            margin: 40px auto;
+            background: #fdfdfd;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        /* --- TITLE --- */
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .title-card {
+            height: 55px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* --- TEXTAREA & BUTTONS --- */
         textarea {
             width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
             font-family: monospace;
             font-size: 14px;
+            background: #f9fafb;
+            resize: vertical;
         }
 
         button {
-            padding: 10px 15px;
-            border-radius: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
             border: none;
             font-size: 14px;
             cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .submit-btn {
             background: #2563eb;
             color: white;
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
         }
 
         .submit-btn:hover {
@@ -55,58 +74,57 @@
         .refresh-btn {
             background: #e5e7eb;
             color: #374151;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         }
 
         .refresh-btn:hover {
             background: #d1d5db;
         }
 
+        /* --- CARD CONTAINER --- */
         .card {
-            background: #f9fafb;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 10px;
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .store-list li {
-            list-style: none;
-            padding: 6px;
-            background: white;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            border: 1px solid #e5e7eb;
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
         }
 
         .section-title {
             color: #1f2937;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #2563eb;
+            display: inline-block;
+            padding-bottom: 4px;
         }
 
-        /* --- CARD IMAGE STYLE --- */
+        /* --- HERO CARD --- */
         .hero-card-container {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .hero-card {
-            width: 220px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            width: 240px;
+            border-radius: 14px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
         }
 
-        .title-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px; /* space between card and text */
+        .hero-card:hover {
+            transform: scale(1.05);
         }
 
-        .title-card {
-            height: 50px;        /* controls the size next to title */
-            border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-        }
-
+        /* --- LOADING BAR --- */
         #loading-container {
             display: none;
             margin-top: 15px;
@@ -115,16 +133,90 @@
         #progress-bar {
             width: 100%;
             background: #e5e7eb;
-            border-radius: 8px;
-            height: 20px;
+            border-radius: 10px;
+            height: 22px;
         }
 
         #progress-fill {
             height: 100%;
             width: 0%;
             background: #2563eb;
-            border-radius: 8px;
+            border-radius: 10px;
             transition: width 0.3s ease;
+        }
+
+        /* --- STORE CARD --- */
+        .store-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .store-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .store-card:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .store-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stock-status {
+            font-size: 12px;
+            color: #555;
+        }
+
+        .price {
+            font-weight: bold;
+            color: #16a34a;
+            font-size: 16px;
+        }
+
+        .buy-link {
+            background: #2563eb;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .buy-link:hover {
+            background: #1e40af;
+        }
+
+        .best-price {
+            border: 2px solid #16a34a;
+            background: #dcfce7;
+        }
+
+        /* --- LINK STYLE --- */
+        ul>li>a {
+            text-decoration: none;
+            color: #2563eb;
+            font-weight: 500;
+        }
+
+        ul>li>a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- Smooth scroll --- */
+        html {
+            scroll-behavior: smooth;
         }
     </style>
 
@@ -148,17 +240,13 @@
 </head>
 
 <body>
-
     <div class="container">
         <h1 class="title-row">
-            <img src="https://cards.scryfall.io/small/front/8/9/893254c7-64cc-4cb9-b79f-2c41a8935ea0.jpg?1738356279" alt="Vnwxt, Verbose Host"
-                class="title-card">
+            <img src="https://cards.scryfall.io/small/front/8/9/893254c7-64cc-4cb9-b79f-2c41a8935ea0.jpg?1738356279"
+                alt="Vnwxt, Verbose Host" class="title-card">
             MTG Price Checker
         </h1>
 
-
-
-        <!-- Refresh button -->
         <button class="refresh-btn" onclick="window.location.href=window.location.href;">
             🔄 Reset / Refresh Page
         </button>
@@ -178,38 +266,49 @@
         </form>
 
         {% if card_list_parsed %}
-        <h2 class="section-title">Parsed Cards:</h2>
-        <div class="card">
-            <ul>
-                {% for card in card_list_parsed %}
-                <li><strong>{{ card.name }}</strong> × {{ card.quantity }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+        <h2 class="section-title">Cards:</h2>
+        <ul>
+            {% for card in card_list_parsed %}
+                {% set card_result = results.get(card.name) %}
+                <li>
+                    <a href="#{{ card.name | replace(' ', '_') }}">
+                        {{ card.name }} × {{ card.quantity }}
+                    </a>
+                    {% if card_result %}
+                        {% if card_result.found %}
+                        <span style="color:green;">✅</span>
+                        {% else %}
+                        <span style="color:red;">❌</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:red;">❌</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
         {% endif %}
 
         {% if results %}
         <h2 class="section-title">Results:</h2>
-
         {% for card_name, data in results.items() %}
-        <div class="card">
+        <div class="card" id="{{ card_name | replace(' ', '_') }}">
             <h3>{{ card_name }} × {{ data.quantity }}</h3>
-
             <ul class="store-list">
                 {% for result in data.results %}
-                <li>
-                    <strong>{{ result.store }}</strong> —
-                    ${{ result.price }} —
-                    {{ result.stock_info }}
+                <li class="store-card {% if loop.first %}best-price{% endif %}">
+                    <div class="store-info">
+                        <strong>{{ result.store }}</strong>
+                        <span class="stock-status">{{ result.stock_info }}</span>
+                    </div>
+                    <div class="price">${{ result.price }}</div>
+                    <a href="{{ result.url }}" target="_blank" class="buy-link">View</a>
                 </li>
                 {% endfor %}
             </ul>
         </div>
         {% endfor %}
         {% endif %}
-
     </div>
-
 </body>
 
 </html>

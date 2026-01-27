@@ -55,7 +55,7 @@ class PriceEngine:
 
                 title = product.get("name", "")
                 price = product.get("price")
-
+                
                 if price and card_name.lower() in title.lower():
                     return {
                         "store": f"Snapcaster ({product.get('vendor', 'Unknown')})",
@@ -99,7 +99,6 @@ class PriceEngine:
                     price = float(product.get("price_max", 0))
                     if price <= 0:
                         continue
-
                     if cheapest is None or price < cheapest["price"]:
                         cheapest = {
                             "store": "JeuxJubes",
@@ -108,7 +107,7 @@ class PriceEngine:
                             "in_stock": True,
                             "stock_info": "Available online",
                             "total_cost": price * quantity,
-                            "url": f"https://www.jeuxjubes.com{product.get('url', '')}",
+                            "url": f"https://www.mtgjeuxjubes.com{product.get('url', '')}",
                         }
 
             return cheapest
@@ -128,10 +127,14 @@ class PriceEngine:
 
             for item in data.get("items", []):
                 title = item.get("l", "")
+                
                 if card_name.lower() in title.lower():
                     price = float(item.get("p", 0))
                     url = item.get("u", "")
+                    sku = item.get("sku","")
 
+                    if "mtg" not in sku.lower():
+                        continue    
                     if url and not url.startswith("http"):
                         url = f"https://store.401games.ca{url}"
 
@@ -174,6 +177,10 @@ class PriceEngine:
                 for variant in src.get("variants", []):
                     price = variant.get("price")
                     inventory = variant.get("inventoryQuantity", 0)
+                    sku = variant.get("sku","")
+                    
+                    if "mtg" not in sku.lower():
+                        continue 
 
                     if price and inventory > 0 and price < best_price:
                         best_price = price
@@ -225,7 +232,8 @@ class PriceEngine:
                     self.last_progress = int(((i + 1) / total) * 100)
                     return card["name"], {
                         "quantity": card["quantity"],
-                        "results": results
+                        "results": results,
+                         "found": bool(results)  # ✅ True if any store returned a result
                     }
 
             tasks = [
