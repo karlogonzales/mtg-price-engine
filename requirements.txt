@@ -2,3 +2,4 @@ flask
 requests
 gunicorn
 aiohttp
+beautifulsoup4
