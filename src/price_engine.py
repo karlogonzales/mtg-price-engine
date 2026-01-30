@@ -183,13 +183,13 @@ class PriceEngine:
 
                 if card_name.lower() not in title.lower():
                     continue
+                if "Magic: The Gathering" not in src.get("General_Game_Type", []):
+                    continue
 
                 for variant in src.get("variants", []):
                     price = variant.get("price")
                     inventory = variant.get("inventoryQuantity", 0)
-                    sku = variant.get("sku", "")
-
-                    if "mtg" not in sku.lower():
+                    if inventory < 0:
                         continue
 
                     if price and inventory > 0 and price < best_price:
@@ -232,7 +232,6 @@ class PriceEngine:
 
             for product in data.get("products", []):
                 title = product.get("display_name", "")
-                print("title", title)
                 # 🚫 Ignore art cards
                 if "art" in title.lower() and "card" in title.lower():
                     continue
