@@ -50,6 +50,7 @@
             font-size: 14px;
             background: #f9fafb;
             resize: vertical;
+            box-sizing: border-box;
         }
 
         button {
@@ -300,7 +301,7 @@
                         <strong>{{ result.store }}</strong>
                         <span class="stock-status">{{ result.stock_info }}</span>
                     </div>
-                    <div class="price">${{ result.price }}</div>
+                    <div class="price">${{ "%.2f"|format(result.price) }}</div>
                     <a href="{{ result.url }}" target="_blank" class="buy-link">View</a>
                 </li>
                 {% endfor %}
